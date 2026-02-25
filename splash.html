@@ -33,7 +33,10 @@
       gap:10px;
       position:relative;
       overflow:hidden;
+      transition: transform .25s ease, opacity .25s ease, filter .25s ease;
     }
+    .box.exit{ opacity:0; transform: scale(.985); filter: blur(1px); }
+
     .topGlow{
       position:absolute; inset:-120px -180px auto auto;
       width:340px; height:340px; border-radius:999px;
@@ -75,21 +78,30 @@
     @keyframes spin{ to{ transform: rotate(360deg);} }
 
     .bar{
-      width: 80%; height: 7px; border-radius: 999px;
+      width: 80%; height: 8px; border-radius: 999px;
       background: rgba(255,255,255,.10);
       overflow:hidden;
       margin-top: 14px;
+      border: 1px solid rgba(255,255,255,.10);
     }
     .bar > div{
-      height:100%; width:42%;
+      height:100%; width:0%;
       background: linear-gradient(90deg, var(--celeste), var(--naranja));
       border-radius:999px;
-      animation: move 1.15s ease-in-out infinite;
+      position:relative;
+      transition: width .22s ease;
     }
-    @keyframes move{
-      0%{ transform: translateX(-35%); opacity:.70 }
-      50%{ transform: translateX(135%); opacity:1 }
-      100%{ transform: translateX(-35%); opacity:.70 }
+    .bar > div::after{
+      content:"";
+      position:absolute; inset:0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.22), transparent);
+      transform: translateX(-60%);
+      animation: shimmer 1.1s ease-in-out infinite;
+    }
+    @keyframes shimmer{
+      0%{ transform: translateX(-60%); opacity:.55 }
+      50%{ transform: translateX(60%); opacity:1 }
+      100%{ transform: translateX(120%); opacity:.55 }
     }
 
     .footer{
@@ -121,22 +133,62 @@
       <div class="subtitle" id="step">Cargando componentes</div>
     </div>
 
-    <div class="bar"><div></div></div>
+    <div class="bar"><div id="barFill"></div></div>
+    <div class="subtitle" id="pct" style="margin-top:8px; font-weight:900; letter-spacing:.3px; opacity:.9">0%</div>
+
     <div class="footer">Por favor espera…</div>
   </div>
 
 <script>
+  const REDIRECT_URL = "https://marckbussisnes.github.io/ESTADO_DE_RESULTADOS/";
+  const TOTAL_MS = 4000;
+
   const steps = [
-    ["Iniciando", "Cargando componentes"],
-    ["Validando", "Verificando licencia"],
-    ["Cargando", "Abriendo sistema"]
+    ["Iniciando",  "Cargando componentes"],
+    ["Validando",  "Verificando licencia"],
+    ["Cargando",   "Abriendo sistema"]
   ];
-  let i = 0;
-  setInterval(()=> {
-    i = (i+1) % steps.length;
-    document.getElementById("phase").textContent = steps[i][0];
-    document.getElementById("step").textContent = steps[i][1];
-  }, 1100);
+
+  const phaseEl = document.getElementById("phase");
+  const stepEl  = document.getElementById("step");
+  const msgEl   = document.getElementById("msg");
+  const pctEl   = document.getElementById("pct");
+  const barFill = document.getElementById("barFill");
+  const box     = document.querySelector(".box");
+
+  const t0 = performance.now();
+  let lastPhase = -1;
+
+  function tick(now){
+    const elapsed = Math.max(0, now - t0);
+    const p = Math.min(1, elapsed / TOTAL_MS);
+
+    const pct = Math.round(p * 100);
+    if(pctEl) pctEl.textContent = pct + "%";
+    if(barFill) barFill.style.width = pct + "%";
+
+    const phaseIdx = p < 0.34 ? 0 : (p < 0.70 ? 1 : 2);
+    if(phaseIdx !== lastPhase){
+      lastPhase = phaseIdx;
+      if(phaseEl) phaseEl.textContent = steps[phaseIdx][0];
+      if(stepEl)  stepEl.textContent  = steps[phaseIdx][1];
+      if(msgEl){
+        msgEl.textContent =
+          phaseIdx === 0 ? "Preparando el sistema…" :
+          phaseIdx === 1 ? "Validación rápida y segura…" :
+                           "Últimos ajustes…";
+      }
+    }
+
+    if(p < 1){
+      requestAnimationFrame(tick);
+    }else{
+      try{ box && box.classList.add("exit"); }catch(e){}
+      setTimeout(()=>{ window.location.href = REDIRECT_URL; }, 220);
+    }
+  }
+
+  requestAnimationFrame(tick);
 </script>
 </body>
 </html>
